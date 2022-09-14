@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script type="text/javascript" src="../d3.js"></script>
+    <style type="text/css">
+        * {
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: Helvetica, Arial, sans-serif;
+            background-color: #eee;
+        }
+
+        #container {
+            width: 1400px;
+            margin: 25px auto 25px auto;
+            padding: 50px 50px 50px 50px;
+            background-color: white;
+            box-shadow: 0 0 20px #ccc;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 25px;
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+        p {
+            text-align: center;
+            margin-bottom: 25px;
+            font-size: 14px;
+            line-height: 18px;
+        }
+
+        svg {
+            display: block;
+            margin-bottom: 10px;
+            background-color: white;
+        }
+    </style>
+    <title>世界各国历年GDP分析</title>
+</head>
+<body>
+    <div id="container">
+
+        <h1>世界各国历年GDP及排名分析</h1>
+
+        <p>数据来源|世界银行</p>
+
+        <div id="chartContainer">
+
+        </div>
+
+    </div>
+
+    <script>
+
+        //Width and height
+        var w = 1200;
+        var h = 300;
+        var padding = 20;
+
+        var dataset, thisTypeDataset, xScale, yScale, xAxis, yAxis, area;  //Empty, for now
+
+        var parseTime = d3.timeParse("%Y");
+        var stack = d3.stack();
+
+        //读取csv文件
+        d3.request("../dataset/gdp_data_source.csv")
+            .mimeType("text/csv")
+            .get(function(response) {
+                var rows = d3.csvParseRows(response.responseText);
+                //console.log(rows);
+
+                dataset = [];
+                for(var i = 1; i < rows.length; i++) {
+                    //创建新对象
+                    dataset[i-1] = {
+                        date:parseTime(rows[i][0])  //为每个年份值创建新的date对象
+                    };
+
+                    //console.log(rows[i].length);
+                    //遍历该行的每一个国家(即当前年份下)
+                    for(var j = 1; j < rows[i].length; j++) {
+                        var country = rows[0][j];   //csv第一行：国家名
+                        var gdp = rows[i][j];       //当前年份下该国家的gdp值
+                        if(!gdp) {
+                            gdp = 0;
+                        } else {
+                            gdp = parseFloat(gdp);
+                        }
+                        //追加新的对象
+                        dataset[i-1][country] = {
+                            "gdp":gdp,
+                        }
+                    }
+                }
+
+                //console.log(dataset);
+                
+
+                //堆叠
+                var keys = Object.keys(dataset[0]).slice(1);
+
+                //告诉堆叠函数key在哪里
+                stack.keys(keys)
+                    .value(function value(d,key) {
+                        return d[key].gdp;
+                    })
+                //堆叠化数据，并打印出来
+                var series = stack(dataset);
+                
+
+                //生成图表
+                //Create scale functions
+                xScale = d3.scaleTime()
+                            .domain([
+                                d3.min(dataset,function(d) {return d.date;}),
+                                d3.max(dataset,function(d) {return d.date;})
+                            ])
+                            .range([padding,w-padding*2]);
+                
+                yScale = d3.scaleLinear()
+                            .domain([
+                                0,
+                                d3.max(dataset,function(d,i) {
+                                    var sum = 0;
+                                    for (var j = 0; j < keys.length; j++) {
+                                        sum += d[keys[j]].gdp;
+                                    };
+                                    //console.log(d["date"]+":,sum:"+sum);
+                                    return sum;
+                                })
+                                
+                            ])
+                            .range([h - padding, padding / 2])
+                            .nice();    //改变函数的 domain ，能自动把 0.00000000000001 变为最接近它的 0,9.999999991 变为最接近它的 10 
+
+                
+                //Define axes
+                xAxis = d3.axisBottom()
+                            .scale(xScale)
+                            .ticks(10);
+                            //.tickFormat(formatTime);
+            
+                //Define Y axis
+                yAxis = d3.axisRight()
+                            .scale(yScale)
+                            .ticks(5);
+
+                //Define area generator
+                area = d3.area()
+                            .x(function(d) {return xScale(d.data.date)})
+                            .y0(function(d) {return yScale(d[0]); })
+                            .y1(function(d) {return yScale(d[1]); });
+
+                                
+                //Create SVG element
+                var svg = d3.select("#chartContainer")
+                            .append("svg")
+                            .attr("width", w)
+                            .attr("height", h);
+                            
+                //Create areas
+                svg.append("g")
+                    .attr("id","gdp")
+                    .selectAll("path")
+                    .data(series)
+                    .enter()
+                    .append("path")
+                    .attr("class", "area")
+                    .attr("d", area)
+                    .attr("fill",function(d,i) {
+                        return d3.schemeCategory20[i%20];
+                    })
+                    .append("title")
+                    .text(function(d) {
+                        return d.key;
+                    });
+
+                
+                //Create axes
+                svg.append("g")
+                    .attr("class", "axis x")
+                    .attr("transform", "translate(0," + (h - padding) + ")")
+                    .call(xAxis);
+            
+                svg.append("g")
+                    .attr("class", "axis y")
+                    //.attr("transform", "translate(" + (w - padding * 2) + ",0)")
+                    .call(yAxis);
+
+                //Create text label
+                
+                
+            })
+
+    </script>
+</body>
+</html>
