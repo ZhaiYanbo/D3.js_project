@@ -44,7 +44,7 @@
             background-color: white;
         }
     </style>
-    <title>世界各国历年GDP分析</title>
+    <title>世界各国历年GDP及排名变化</title>
 </head>
 <body>
     <div id="container">
@@ -66,7 +66,7 @@
         var h = 300;
         var padding = 20;
 
-        var dataset, thisTypeDataset, xScale, yScale, xAxis, yAxis, area;  //Empty, for now
+        var dataset, thisTypeDataset, xScale, yScale, smallScale, xAxis, yAxis, area;  //Empty, for now
 
         var parseTime = d3.timeParse("%Y");
         var stack = d3.stack();
@@ -113,36 +113,90 @@
                     .value(function value(d,key) {
                         return d[key].gdp;
                     })
+                    .order(d3.stackOrderAcending)
                 //堆叠化数据，并打印出来
                 var series = stack(dataset);
-                
 
-                //生成图表
-                //Create scale functions
-                xScale = d3.scaleTime()
-                            .domain([
-                                d3.min(dataset,function(d) {return d.date;}),
-                                d3.max(dataset,function(d) {return d.date;})
-                            ])
-                            .range([padding,w-padding*2]);
-                
-                yScale = d3.scaleLinear()
-                            .domain([
-                                0,
-                                d3.max(dataset,function(d,i) {
+                console.log("series:");
+                console.log(series);
+
+                var real=[]; // 国家序号
+                var gdps=[]; // 每年的GDP排列
+                for(var i=0;i<dataset.length;i++) // 对每个时间
+                {
+                    for(var c=0;c<keys.length;c++) // 对每个国家
+                    {
+                        real[c]=c;
+                        gdps[c]=series[c][i][1]-series[c][i][0]; 
+                    }               
+
+                    // 根据GDP进行排序
+                    for(var c=0;c<keys.length-1;c++)
+                    {
+                        var k=c;
+                        for(var com=c+1;com<keys.length;com++)
+                        {
+                            if(gdps[k]>gdps[com])
+                            {
+                                k=com;      //k记录最大下标
+                            }
+                        }
+                        if(k!=c)
+                        {
+                            var t=real[k];
+                            real[k]=real[c];
+                            real[c]=t;
+                            var s=gdps[k];
+                            gdps[k]=gdps[c];
+                            gdps[c]=s;
+                        }
+                    }
+
+                    // 更新每年的series[][i]
+                    var last=0; 
+                    for (var c=0; c<keys.length; c++)
+                    {
+                        var number = real[c];
+                        var temp = series[number][i][0]; 
+                        series[number][i][0] = last;
+                        series[number][i][1] = last+series[number][i][1]-temp;
+                        last = series[number][i][1];
+                    }
+                }
+                console.log(series);
+
+
+
+                //求出一年gdp总和的最大值
+                var maxGdp = d3.max(dataset,function(d,i) {
                                     var sum = 0;
                                     for (var j = 0; j < keys.length; j++) {
                                         sum += d[keys[j]].gdp;
                                     };
                                     //console.log(d["date"]+":,sum:"+sum);
                                     return sum;
-                                })
-                                
-                            ])
-                            .range([h - padding, padding / 2])
-                            .nice();    //改变函数的 domain ，能自动把 0.00000000000001 变为最接近它的 0,9.999999991 变为最接近它的 10 
+                                });
+                console.log(maxGdp/1e12);   //确定y轴数字范围
 
+        
+                //创建比例尺函数
+                xScale = d3.scaleTime()
+                            .domain([
+                                d3.min(dataset,function(d) {return d.date;}),
+                                d3.max(dataset,function(d) {return d.date;})
+                            ])
+                            .range([padding*5,w-padding*2]);
                 
+                yScale = d3.scaleLinear()
+                            .domain([0,80])
+                            .range([h - padding, padding]);
+                
+                smallScale = d3.scaleLinear()
+                            .domain([0,8e13])
+                            .range([0,80]);
+
+
+                //定义坐标轴
                 //Define axes
                 xAxis = d3.axisBottom()
                             .scale(xScale)
@@ -157,8 +211,8 @@
                 //Define area generator
                 area = d3.area()
                             .x(function(d) {return xScale(d.data.date)})
-                            .y0(function(d) {return yScale(d[0]); })
-                            .y1(function(d) {return yScale(d[1]); });
+                            .y0(function(d) {return yScale(smallScale(d[0])); })
+                            .y1(function(d) {return yScale(smallScale(d[1])); });
 
                                 
                 //Create SVG element
@@ -193,11 +247,25 @@
             
                 svg.append("g")
                     .attr("class", "axis y")
-                    //.attr("transform", "translate(" + (w - padding * 2) + ",0)")
+                    .attr("transform", "translate(" + padding*2 + ",0)")
                     .call(yAxis);
-
-                //Create text label
                 
+                svg.append("g")
+                    .append("text")
+                    .attr("class","yAxisText")
+                    .text("万亿（美元）")
+                    .attr("x",padding)
+                    .attr("y",yScale(60))
+                    .attr("font-size","12px");
+            
+                //Create text label
+                // svg.append("text")
+                //     .attr("class","countryLabel")
+                //     .attr("x",)
+                //     .attr("y",)
+                //     .text()
+                //     .attr("font-family","sans-serif")
+                //     .attr("font-size","11px");
                 
             })
 
