@@ -24,6 +24,10 @@
             box-shadow: 0 0 20px #ccc;
         }
 
+        .yAxisText {
+            writing-mode:vertical-rl
+        }
+
         h1 {
             text-align: center;
             margin-bottom: 25px;
@@ -43,6 +47,7 @@
             margin-bottom: 10px;
             background-color: white;
         }
+
     </style>
     <title>世界各国历年GDP及排名变化</title>
 </head>
@@ -63,7 +68,7 @@
 
         //Width and height
         var w = 1200;
-        var h = 300;
+        var h = 500;
         var padding = 20;
 
         var dataset, thisTypeDataset, xScale, yScale, smallScale, xAxis, yAxis, area;  //Empty, for now
@@ -128,7 +133,7 @@
                     {
                         real[c]=c;
                         gdps[c]=series[c][i][1]-series[c][i][0]; 
-                    }               
+                    }
 
                     // 根据GDP进行排序
                     for(var c=0;c<keys.length-1;c++)
@@ -163,6 +168,7 @@
                         last = series[number][i][1];
                     }
                 }
+                console.log("排序后的series:");
                 console.log(series);
 
 
@@ -206,7 +212,7 @@
                 //Define Y axis
                 yAxis = d3.axisRight()
                             .scale(yScale)
-                            .ticks(5);
+                            .ticks(8);
 
                 //Define area generator
                 area = d3.area()
@@ -233,6 +239,22 @@
                     .attr("fill",function(d,i) {
                         return d3.schemeCategory20[i%20];
                     })
+                    .on("mouseover",function(d) {
+                        //console.log(d.key);
+                        d3.selectAll(".area")
+                            .attr("fill","grey")
+                            .attr("opacity",0.5);
+                        d3.select(this)
+                            .attr("fill","red")
+                            .attr("opacity","1");
+                    })
+                    .on("mouseout",function(d) {
+                        d3.selectAll(".area")
+                            .attr("fill",function(d,i) {
+                                return d3.schemeCategory20[i%20];
+                            })
+                            .attr("opacity",1);
+                    })
                     .append("title")
                     .text(function(d) {
                         return d.key;
@@ -243,29 +265,36 @@
                 svg.append("g")
                     .attr("class", "axis x")
                     .attr("transform", "translate(0," + (h - padding) + ")")
-                    .call(xAxis);
+                    .call(xAxis)
+                    .attr("font-size","13px");
             
                 svg.append("g")
                     .attr("class", "axis y")
-                    .attr("transform", "translate(" + padding*2 + ",0)")
-                    .call(yAxis);
+                    .attr("transform", "translate(" + padding*5 + ",0)")
+                    .call(yAxis)
+                    .attr("font-size","13px");
                 
                 svg.append("g")
                     .append("text")
                     .attr("class","yAxisText")
-                    .text("万亿（美元）")
-                    .attr("x",padding)
-                    .attr("y",yScale(60))
-                    .attr("font-size","12px");
+                    .attr("x",padding*5+30)
+                    .attr("font-size","13px")
+                    .text("万亿（美元）");
             
+
                 //Create text label
-                // svg.append("text")
-                //     .attr("class","countryLabel")
-                //     .attr("x",)
-                //     .attr("y",)
-                //     .text()
-                //     .attr("font-family","sans-serif")
-                //     .attr("font-size","11px");
+                for(var j=keys.length-1;j>=keys.length-12;j--)
+                {
+                    svg.append("g")
+                        .append("text")
+                        .text(keys[real[j]])
+                        .attr("x",w-2*padding)
+                        .attr("y",function() {
+                            return yScale(smallScale(series[real[j]][57][1]+series[real[j]][57][0])/2) + 5;
+                        })
+                        .attr("font-size","10px");
+                }
+
                 
             })
 
